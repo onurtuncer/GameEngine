@@ -26,6 +26,7 @@ FetchContent_MakeAvailable(spdlog)
 # Add the executable target
 add_library(Hazel
     src/Application.cpp
+    src/Log.cpp
 )
 
 # Include the current directory for header files
