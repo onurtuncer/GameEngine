@@ -47,6 +47,6 @@ add_library(Hazel
 
 # Include the current directory for header files
 target_include_directories(Hazel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Hazel)
-target_link_libraries(Hazel PUBLIC spdlog::spdlog_header_only)
+target_link_libraries(Hazel PUBLIC spdlog::spdlog_header_only glfw)
 
 add_subdirectory(test)
