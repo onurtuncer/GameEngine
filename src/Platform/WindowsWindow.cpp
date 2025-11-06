@@ -1,5 +1,7 @@
 #include "Hazel/Platform/WindowsWindow.h"
 
+#include "Hazel/Core/Log.h"
+
 namespace Hazel {
 
 	Window* Window::Create(const WindowProps& props)
@@ -8,8 +10,8 @@ namespace Hazel {
 	}
 
 	WindowsWindow::WindowsWindow(const WindowProps& props)
-		: Window(props)
 	{
+		Init(props);
 	}
 
 	WindowsWindow::~WindowsWindow()
@@ -23,10 +25,16 @@ namespace Hazel {
 		m_Height = props.Height;
 
 		// TODO: GLFW
+		HZ_CORE_INFO("Creating window {0} ({1}, {2})", m_Title, m_Width, m_Height);
 	}
 
 	void WindowsWindow::Shutdown()
 	{
+	}
+
+	void WindowsWindow::OnUpdate()
+	{
+		HZ_CORE_INFO("WindowsWindow::OnUpdate");
 	}
 
 }

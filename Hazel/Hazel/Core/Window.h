@@ -27,17 +27,15 @@ namespace Hazel {
 	public:
 		using EventCallbackFn = std::function<void(Event&)>;
 
-		Window(const WindowProps& props);
 		virtual ~Window() {}
+
+		virtual void OnUpdate() = 0;
 
 		virtual void SetEventCallback(const EventCallbackFn& callback) = 0;
 		virtual unsigned int GetWidth() const = 0;
 		virtual unsigned int GetHeight() const = 0;
 
 		static Window* Create(const WindowProps& props = WindowProps());
-	protected:
-		virtual void Init(const WindowProps& props) = 0;
-		virtual void Shutdown() = 0;
 	};
 
 }

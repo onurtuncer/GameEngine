@@ -1,5 +1,14 @@
 #pragma once
 
+#include <memory>
+
+namespace Hazel {
+
+	void InitializeCore();
+	void ShutdownCore();
+
+}
+
 #ifdef HZ_DEBUG
 #define HZ_ENABLE_ASSERTS
 #endif
