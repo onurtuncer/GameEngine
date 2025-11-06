@@ -1,6 +1,6 @@
-#include "Hazel/Application.h"
-#include "Hazel/Events/ApplicationEvent.h"
-#include "Hazel/Log.h"
+#include "Hazel/Core/Application.h"
+#include "Hazel/Core/Events/ApplicationEvent.h"
+#include "Hazel/Core/Log.h"
 
 namespace Hazel{
 

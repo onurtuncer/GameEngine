@@ -1,4 +1,4 @@
-#include "Hazel/Log.h"
+#include "Hazel/Core/Log.h"
 
 #include <spdlog/sinks/stdout_color_sinks.h>  // <-- REQUIRED for stdout_color_mt
 

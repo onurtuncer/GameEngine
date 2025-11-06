@@ -1,8 +1,9 @@
 #pragma once 
 
-#include "Hazel/Core.h"
+#include "Hazel/Core/Core.h"
 
 #include <string>
+#include <ostream>   // <-- required for std::ostream & stream machinery
 #include <functional>
 
 namespace Hazel {

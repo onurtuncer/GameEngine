@@ -5,7 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
 
-#include "Hazel/Core.h"
+#include "Hazel/Core/Core.h"
 
 namespace Hazel {
 

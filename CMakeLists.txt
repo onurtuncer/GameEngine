@@ -25,9 +25,9 @@ FetchContent_MakeAvailable(spdlog)
 
 # Add the executable target
 add_library(Hazel
-    src/Application.cpp
-    src/Log.cpp
- "Hazel/Hazel/Events/Event.h" "Hazel/Hazel/Events/ApplicationEvent.h" "Hazel/Hazel/Events/KeyEvent.h" "Hazel/Hazel/Events/MouseEvent.h")
+                    src/Core/Application.cpp
+                    src/Core/Log.cpp
+                    src/Platform/WindowsWindow.cpp)
 
 # Include the current directory for header files
 target_include_directories(Hazel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Hazel)
