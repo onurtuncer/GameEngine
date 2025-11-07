@@ -29,6 +29,9 @@ namespace Hazel {
 
 		virtual ~Window() {}
 
+		// AFTER
+		virtual void* GetNativeWindow() const = 0;
+
 		virtual void OnUpdate() = 0;
 
 		virtual unsigned int GetWidth() const = 0;
