@@ -1,217 +1,244 @@
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <Windows.h>
+#endif
+
+#include <glad/glad.h>   // include AFTER Windows.h on Win32
+
 #include "Hazel/Platform/WindowsWindow.h"
 
+#include "Hazel/Core/Events/ApplicationEvent.h" // WindowCloseEvent, WindowResizeEvent
+#include "Hazel/Core/Events/KeyEvent.h"
+#include "Hazel/Core/Events/MouseEvent.h"
+
+
+#include <glad/glad.h>     // if you use GL
+#include <cassert>
 #include "Hazel/Core/Log.h"
+
+// Simple error check macro
+static void SDLErrorCheck(const char* where)
+{
+    const char* err = SDL_GetError();
+    if (err && *err)
+    {
+        HZ_CORE_ERROR("[SDL] {}: {}", where, err);
+        SDL_ClearError();
+    }
+}
 
 namespace Hazel {
 
-	static bool s_SDLInitialized = false;
+    // ---------------- Callback storage helpers ----------------
 
-	static void SDLErrorCheck(const char* context)
-	{
-		const char* err = SDL_GetError();
-		if (err && err[0] != '\0')
-		{
-			HZ_CORE_ERROR("SDL Error in {0}: {1}", context, err);
-			// After logging, you can clear it if you want to avoid repeats:
-			// SDL_ClearError();
-		}
-	}
+    void SetWindowCloseCallback(::SDL_Window* window, std::function<void(::SDL_Window*)> cb)
+    {
+        // store a heap-allocated function object
+        auto* heapFn = new std::function<void(::SDL_Window*)>(std::move(cb));
+        // free old one if present
+        if (auto* oldPtr = static_cast<std::function<void(::SDL_Window*)>*>(SDL_GetWindowData(window, kCloseCbKey)))
+            delete oldPtr;
 
-	/*static void GLFWErrorCallback(int error, const char* description)
-	{
-		HZ_CORE_ERROR("GLFW Error ({0}): {1}", error, description);
-	} */
+        SDL_SetWindowData(window, kCloseCbKey, static_cast<void*>(heapFn));
+    }
 
-	//static bool s_GLFWInitialized = false;
+    void SetWindowSizeCallback(::SDL_Window* window, std::function<void(::SDL_Window*, int, int)> cb)
+    {
+        auto* heapFn = new std::function<void(::SDL_Window*, int, int)>(std::move(cb));
+        if (auto* oldPtr = static_cast<std::function<void(::SDL_Window*, int, int)>*>(SDL_GetWindowData(window, kSizeCbKey)))
+            delete oldPtr;
 
-	Window* Window::Create(const WindowProps& props)
-	{
-		return new WindowsWindow(props);
-	}
+        SDL_SetWindowData(window, kSizeCbKey, static_cast<void*>(heapFn));
+    }
 
-	WindowsWindow::WindowsWindow(const WindowProps& props)
-	{
-		Init(props);
-	}
+    // Install a single global event watcher once
+    static void EnsureGlobalWatcherInstalled()
+    {
+        static bool watcherInstalled = false;
+        if (watcherInstalled) return;
 
-	WindowsWindow::~WindowsWindow()
-	{
-		Shutdown();
-	}
+        SDL_AddEventWatch([](void*, SDL_Event* e) -> int
+            {
+                if (e->type == SDL_WINDOWEVENT)
+                {
+                    ::SDL_Window* win = SDL_GetWindowFromID(e->window.windowID);
+                    if (!win) return 0;
 
-	void WindowsWindow::Init(const WindowProps& props)
-	{
-		m_Data.Title = props.Title;
-		m_Data.Width = props.Width;
-		m_Data.Height = props.Height;
+                    switch (e->window.event)
+                    {
+                    case SDL_WINDOWEVENT_CLOSE:
+                        if (auto* fn = static_cast<std::function<void(::SDL_Window*)>*>(SDL_GetWindowData(win, kCloseCbKey)))
+                            (*fn)(win);
+                        break;
+                    case SDL_WINDOWEVENT_RESIZED:
+                    case SDL_WINDOWEVENT_SIZE_CHANGED:
+                    {
+                        int w = 0, h = 0;
+                        SDL_GetWindowSize(win, &w, &h);
+                        if (auto* fn = static_cast<std::function<void(::SDL_Window*, int, int)>*>(SDL_GetWindowData(win, kSizeCbKey)))
+                            (*fn)(win, w, h);
+                        break;
+                    }
+                    default: break;
+                    }
+                }
+                return 0;
+            }, nullptr);
 
-		HZ_CORE_INFO("Creating window {0} ({1}, {2})", props.Title, props.Width, props.Height);
+        watcherInstalled = true;
+    }
 
-		if (!s_SDLInitialized)
-		{
-			/*if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
-			{
-				HZ_CORE_ASSERT(false, "SDL_Init failed: {0}", SDL_GetError());
-			}*/
+    // ---------------- WindowsWindow ----------------
 
-			if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
-			{
-				HZ_CORE_ERROR("SDL_Init failed: {0}", SDL_GetError());
-				// handle fatal
-			}
-			s_SDLInitialized = true;
-		}
+    // Factory: create the platform window (raw pointer per your signature)
+    Window* Window::Create(const WindowProps& props)
+    {
+        return new WindowsWindow(props);
+    }
 
-		// OpenGL attributes (match your GL version)
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    WindowsWindow::WindowsWindow(const WindowProps& props)
+    {
+        Init(props);
+    }
 
-		Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-		m_Window = SDL_CreateWindow(
-			m_Data.Title.c_str(),
-			SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-			(int)m_Data.Width, (int)m_Data.Height,
-			flags
-		);
-		HZ_CORE_ASSERT(m_Window, "SDL_CreateWindow failed: {0}", SDL_GetError());
+    WindowsWindow::~WindowsWindow()
+    {
+        Shutdown();
+    }
 
-		m_GLContext = SDL_GL_CreateContext(m_Window);
-		HZ_CORE_ASSERT(m_GLContext, "SDL_GL_CreateContext failed: {0}", SDL_GetError());
+    void WindowsWindow::Init(const WindowProps& props)
+    {
+        m_Data.Title = props.Title;
+        m_Data.Width = props.Width;
+        m_Data.Height = props.Height;
 
-		SDL_GL_MakeCurrent(m_Window, m_GLContext);  // like glfwMakeContextCurrent
+        if (!s_SDLInitialized)
+        {
+            if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0)
+            {
+                SDLErrorCheck("SDL_Init");
+                assert(false && "SDL_Init failed");
+            }
+            s_SDLInitialized = true;
+        }
 
-		// Load GL via GLAD using SDL's proc loader
-		if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-			HZ_CORE_ASSERT(false, "Failed to initialize GLAD");
-		}
+        // GL attributes if you use GL
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-		SetVSync(true);
+        const Uint32 flags =
+            SDL_WINDOW_OPENGL |
+            SDL_WINDOW_RESIZABLE |
+            SDL_WINDOW_ALLOW_HIGHDPI;
 
-		// Query drawable size for HiDPI aware viewport sizing
-		int fbW, fbH;
-		SDL_GL_GetDrawableSize(m_Window, &fbW, &fbH);
-		glViewport(0, 0, fbW, fbH); // your renderer may override later
+        m_Window = SDL_CreateWindow(
+            m_Data.Title.c_str(),
+            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            static_cast<int>(m_Data.Width),
+            static_cast<int>(m_Data.Height),
+            flags);
 
-		/*if (!s_GLFWInitialized)
-		{
-			// TODO: glfwTerminate on system shutdown
-			int success = glfwInit();
-			HZ_ASSERT(success, "Could not intialize GLFW!");
-			glfwSetErrorCallback(GLFWErrorCallback);
+        if (!m_Window)
+        {
+            SDLErrorCheck("SDL_CreateWindow");
+            assert(false && "SDL_CreateWindow failed");
+        }
 
-			s_GLFWInitialized = true;
-		}
+        // Attach Hazel window data (so other code can fetch our WindowData*)
+        SDL_SetWindowData(m_Window, kHazelDataKey, static_cast<void*>(&m_Data));
 
-		m_Window = glfwCreateWindow((int)props.Width, (int)props.Height, m_Data.Title.c_str(), nullptr, nullptr);
-		glfwMakeContextCurrent(m_Window);
-		glfwSetWindowUserPointer(m_Window, &m_Data);
-		SetVSync(true);
+        // Create GL context
+        m_GLContext = SDL_GL_CreateContext(m_Window);
+        if (!m_GLContext)
+        {
+            SDLErrorCheck("SDL_GL_CreateContext");
+            assert(false && "SDL_GL_CreateContext failed");
+        }
 
-		// Set GLFW callbacks
-		glfwSetWindowSizeCallback(m_Window, [](GLFWwindow* window, int width, int height)
-			{
-				auto& data = *((WindowData*)glfwGetWindowUserPointer(window));
-				data.Width = width;
-				data.Height = height;
-				// TODO: Create and dispatch event
-			}); */
-	}
+        // Load GL
+        if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
+        {
+            assert(false && "Failed to initialize GLAD");
+        }
 
-	void WindowsWindow::Shutdown()
-	{
-		if (m_GLContext) {
-			SDL_GL_DeleteContext(m_GLContext);
-			m_GLContext = nullptr;
-		}
-		if (m_Window) {
-			SDL_DestroyWindow(m_Window);
-			m_Window = nullptr;
-		}
-		// Do NOT SDL_Quit() here if you may open multiple windows later.
-	}
+        SDL_GL_MakeCurrent(m_Window, m_GLContext);
+        SDL_GL_SetSwapInterval(1); // vsync on by default
+        m_Data.VSync = true;
 
-	void WindowsWindow::OnUpdate()
-	{
-		HZ_CORE_INFO("Window size = {0}, {1}", GetWidth(), GetHeight());
-		//glfwPollEvents();
-		//glfwSwapBuffers(m_Window);
+        EnsureGlobalWatcherInstalled();
 
-		SDL_Event e;
-		while (SDL_PollEvent(&e)) {
-			switch (e.type) {
-			case SDL_QUIT:
-				// Dispatch your WindowCloseEvent here
-				if (m_Data.EventCallback) {
-					// WindowCloseEvent ev; m_Data.EventCallback(ev);
-				}
-				break;
-			case SDL_WINDOWEVENT:
-				if (e.window.event == SDL_WINDOWEVENT_RESIZED) {
-					m_Data.Width = (uint32_t)e.window.data1;
-					m_Data.Height = (uint32_t)e.window.data2;
+        // Wire callbacks into SDL window data
+        SetWindowCloseCallback(m_Window, [this](::SDL_Window*)
+            {
+                WindowCloseEvent ev;
+                if (m_Data.EventCallback) m_Data.EventCallback(ev);
+            });
 
-					int fbW, fbH;
-					SDL_GL_GetDrawableSize(m_Window, &fbW, &fbH);
-					glViewport(0, 0, fbW, fbH);
+        SetWindowSizeCallback(m_Window, [this](::SDL_Window*, int w, int h)
+            {
+                m_Data.Width = static_cast<unsigned>(w);
+                m_Data.Height = static_cast<unsigned>(h);
+                WindowResizeEvent ev(w, h);
+                if (m_Data.EventCallback) m_Data.EventCallback(ev);
+            });
 
-					if (m_Data.EventCallback) {
-						// WindowResizeEvent ev((uint32_t)fbW, (uint32_t)fbH);
-						// m_Data.EventCallback(ev);
-					}
-				}
-				break;
-			case SDL_KEYDOWN:
-				// translate to your KeyPressedEvent (e.key.keysym.sym, e.key.repeat)
-				break;
-			case SDL_KEYUP:
-				// translate to your KeyReleasedEvent
-				break;
-			case SDL_MOUSEMOTION:
-				// translate to your MouseMovedEvent (e.motion.x, e.motion.y)
-				break;
-			case SDL_MOUSEWHEEL:
-				// translate to your MouseScrolledEvent (e.wheel.x, e.wheel.y)
-				break;
-			case SDL_MOUSEBUTTONDOWN:
-			case SDL_MOUSEBUTTONUP:
-				// translate to your MouseButton events
-				break;
-			case SDL_DROPFILE:
-				// char* path = e.drop.file; ... SDL_free(path);
-				break;
-			default: break;
-			}
-		}
+    }
 
-		SDL_GL_SwapWindow(m_Window);
-	}
+    void WindowsWindow::Shutdown()
+    {
+        if (m_Window)
+        {
+            // Clean stored callbacks
+            if (auto* fnClose = static_cast<std::function<void(::SDL_Window*)>*>(SDL_GetWindowData(m_Window, kCloseCbKey)))
+            {
+                delete fnClose; SDL_SetWindowData(m_Window, kCloseCbKey, nullptr);
+            }
+            if (auto* fnSize = static_cast<std::function<void(::SDL_Window*, int, int)>*>(SDL_GetWindowData(m_Window, kSizeCbKey)))
+            {
+                delete fnSize; SDL_SetWindowData(m_Window, kSizeCbKey, nullptr);
+            }
 
-	void WindowsWindow::SetVSync(bool enabled)
-	{
-		SDL_GL_SetSwapInterval(enabled ? 1 : 0);
-		m_Data.VSync = enabled;
-	}
+            SDL_SetWindowData(m_Window, kHazelDataKey, nullptr);
 
-	bool WindowsWindow::IsVSync() const
-	{
-		return m_Data.VSync;
-	}
+            if (m_GLContext)
+            {
+                SDL_GL_DeleteContext(m_GLContext);
+                m_GLContext = nullptr;
+            }
 
-	/*void WindowsWindow::SetVSync(bool enabled)
-	{
-		if (enabled)
-			glfwSwapInterval(1);
-		else
-			glfwSwapInterval(0);
+            SDL_DestroyWindow(m_Window);
+            m_Window = nullptr;
+        }
+    }
 
-		m_Data.VSync = enabled;
-	}
+    void WindowsWindow::OnUpdate()
+    {
+        // Pump events elsewhere if you prefer
+        SDL_Event e;
+        while (SDL_PollEvent(&e))
+        {
+            if (e.type == SDL_QUIT)
+            {
+                WindowCloseEvent ev;
+                if (m_Data.EventCallback) m_Data.EventCallback(ev);
+            }
+        }
 
-	bool WindowsWindow::IsVSync() const
-	{
-		return m_Data.VSync;
-	} */
+        SDL_GL_SwapWindow(m_Window);
+    }
 
-}
+    void WindowsWindow::SetVSync(bool enabled)
+    {
+        SDL_GL_SetSwapInterval(enabled ? 1 : 0);
+        m_Data.VSync = enabled;
+    }
+
+} // namespace Hazel
+

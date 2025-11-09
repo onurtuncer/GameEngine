@@ -48,8 +48,9 @@ find_package(OpenGL REQUIRED)  # provides OpenGL::GL on most platforms
 # Add the executable target
 add_library(Hazel
                     src/Core/Application.cpp
+                    src/Core/Core.cpp
                     src/Core/Log.cpp
-                    src/Platform/WindowsWindow.cpp "src/Core/Core.cpp" "Hazel/Hazel/Core/Platform.h")
+                    src/Platform/WindowsWindow.cpp  "Hazel/Hazel/Core/Platform.h")
 
 # Include the current directory for header files
 target_include_directories(Hazel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Hazel)

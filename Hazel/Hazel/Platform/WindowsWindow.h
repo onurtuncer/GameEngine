@@ -1,53 +1,64 @@
 #pragma once
 
-#include "Hazel/Core/Window.h"
+#include <string>
+#include <functional>
+#include <cstdint>
+#include <SDL.h>          // global namespace SDL
+#include <SDL_video.h>
 
-#include <utility>
-
-#include <glad/glad.h>   // MUST be first GL include
-#include <SDL.h>         // brings SDL_GL_* declarations via SDL_video.h
+#include "Hazel/Core/Window.h"     // your base Window + WindowProps
+#include "Hazel/Core/Events/Event.h"
 
 namespace Hazel {
 
-	
+    class WindowsWindow : public Window
+    {
+    public:
+        explicit WindowsWindow(const WindowProps& props);
+        ~WindowsWindow() override;
 
-	class WindowsWindow : public Window
-	{
-	public:
-		WindowsWindow(const WindowProps& props);
-		virtual ~WindowsWindow();
+        void OnUpdate() override;
 
-		void OnUpdate() override;
+        unsigned int GetWidth()  const override { return m_Data.Width; }
+        unsigned int GetHeight() const override { return m_Data.Height; }
 
-		inline unsigned int GetWidth() const override { return m_Data.Width; }
-		inline unsigned int GetHeight() const override { return m_Data.Height; }
+        // Window attributes
+        void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
+        void SetVSync(bool enabled) override;
+        bool IsVSync() const override { return m_Data.VSync; }
 
-		// Window attributes
+        void* GetNativeWindow() const override { return m_Window; } // or SDL_Window* if your interface allows
 
-		void SetEventCallback(const EventCallbackFn& cb) override { m_Data.EventCallback = cb; }
-		void SetVSync(bool enabled) override;
-		bool IsVSync() const override;
-		void* GetNativeWindow() const override { return m_Window; }
+    private:
+        void Init(const WindowProps& props);
+        void Shutdown();
 
+    private:
+        struct WindowData
+        {
+            std::string Title;
+            unsigned int Width = 0;
+            unsigned int Height = 0;
+            bool VSync = false;
 
-	private:
-		virtual void Init(const WindowProps& props);
-		virtual void Shutdown();
-	private:
-		//GLFWwindow* m_Window;
-		SDL_Window* m_Window = nullptr;
-		SDL_GLContext m_GLContext = nullptr;
-		EventCallbackFn m_EventCallbackFn;
+            EventCallbackFn EventCallback;
+        };
 
-		struct WindowData
-		{
-			std::string Title;
-			unsigned int Width, Height;
-			bool VSync;
-			EventCallbackFn EventCallback;  
-		};
+    private:
+        inline static bool s_SDLInitialized = false;
 
-		WindowData m_Data;
-	};
+        ::SDL_Window* m_Window = nullptr;   // NOTE: global namespace
+        SDL_GLContext m_GLContext = nullptr;
+        WindowData    m_Data;
+    };
 
-}
+    // Small utility keys used with SDL_(Get|Set)WindowData
+    inline constexpr const char* kHazelDataKey = "hazel_data";
+    inline constexpr const char* kCloseCbKey = "window_close_callback";
+    inline constexpr const char* kSizeCbKey = "window_size_callback";
+
+    // Helpers to stash callbacks into SDL window data
+    void SetWindowCloseCallback(::SDL_Window* window, std::function<void(::SDL_Window*)> cb);
+    void SetWindowSizeCallback(::SDL_Window* window, std::function<void(::SDL_Window*, int, int)> cb);
+
+} // namespace Hazel
