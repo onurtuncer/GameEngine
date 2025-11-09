@@ -222,12 +222,103 @@ namespace Hazel {
     {
         // Pump events elsewhere if you prefer
         SDL_Event e;
+
         while (SDL_PollEvent(&e))
         {
-            if (e.type == SDL_QUIT)
+            switch (e.type)
+            {
+            case SDL_QUIT:
             {
                 WindowCloseEvent ev;
                 if (m_Data.EventCallback) m_Data.EventCallback(ev);
+                break;
+            }
+
+            case SDL_WINDOWEVENT:
+                // (You already handle resize via the global watcher or here.)
+                break;
+
+            case SDL_KEYDOWN:
+            {
+                // SDL gives only a boolean repeat flag (0/1). Your API wants an int repeat count.
+                // We’ll pass 0 for the first press and 1 when it's an auto-repeat event.
+                const int keycode = static_cast<int>(e.key.keysym.sym);
+                const int repeatCount = e.key.repeat ? 1 : 0;
+
+                KeyPressedEvent ev(keycode, repeatCount);
+                if (m_Data.EventCallback) m_Data.EventCallback(ev);
+                break;
+            }
+
+            case SDL_KEYUP:
+            {
+                const int keycode = static_cast<int>(e.key.keysym.sym);
+                KeyReleasedEvent ev(keycode);
+                if (m_Data.EventCallback) m_Data.EventCallback(ev);
+                break;
+            }
+
+            // Optional: text typing (if you have KeyTypedEvent)
+            // case SDL_TEXTINPUT:
+            // {
+            //     const char* text = e.text.text; // UTF-8
+            //     for (const char* p = text; *p; )
+            //     {
+            //         uint32_t cp = /* decode next UTF-8 codepoint */;
+            //         KeyTypedEvent ev(static_cast<int>(cp));
+            //         if (m_Data.EventCallback) m_Data.EventCallback(ev);
+            //     }
+            //     break;
+            // }
+
+            case SDL_MOUSEMOTION:
+            {
+                const float mx = static_cast<float>(e.motion.x);
+                const float my = static_cast<float>(e.motion.y);
+                MouseMovedEvent ev(mx, my);
+                if (m_Data.EventCallback) m_Data.EventCallback(ev);
+                break;
+            }
+
+            case SDL_MOUSEWHEEL:
+            {
+                // SDL gives both integer and high-precision (float) deltas (since 2.0.18).
+                float xoff = 0.0f, yoff = 0.0f;
+
+#if SDL_VERSION_ATLEAST(2,0,18)
+                xoff = e.wheel.preciseX;
+                yoff = e.wheel.preciseY;
+#else
+                xoff = static_cast<float>(e.wheel.x);
+                yoff = static_cast<float>(e.wheel.y);
+#endif
+                // Respect "flipped" direction (natural scrolling on some platforms)
+                if (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) { xoff = -xoff; yoff = -yoff; }
+
+                MouseScrolledEvent ev(xoff, yoff);
+                if (m_Data.EventCallback) m_Data.EventCallback(ev);
+                break;
+            }
+
+            case SDL_MOUSEBUTTONDOWN:
+            {
+                // You can pass SDL’s button code straight through, or remap to your own enum.
+                const int btn = static_cast<int>(e.button.button); // SDL_BUTTON_LEFT, SDL_BUTTON_RIGHT, etc.
+                MouseButtonPressedEvent ev(btn);
+                if (m_Data.EventCallback) m_Data.EventCallback(ev);
+                break;
+            }
+
+            case SDL_MOUSEBUTTONUP:
+            {
+                const int btn = static_cast<int>(e.button.button);
+                MouseButtonReleasedEvent ev(btn);
+                if (m_Data.EventCallback) m_Data.EventCallback(ev);
+                break;
+            }
+
+            default:
+                break;
             }
         }
 

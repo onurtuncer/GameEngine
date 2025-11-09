@@ -83,7 +83,7 @@ namespace Hazel {
 		EVENT_CLASS_TYPE(MouseButtonPressed)
 	};
 
-	class  MouseButtonReleasedEvent : public MouseButtonEvent
+	class MouseButtonReleasedEvent : public MouseButtonEvent
 	{
 	public:
 		MouseButtonReleasedEvent(int button)
