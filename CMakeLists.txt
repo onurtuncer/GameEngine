@@ -40,20 +40,82 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/Dav1dde/glad.git
   GIT_TAG v0.1.36
 )
+
+# Generator ayarlar? (default’a yak?n tutuyoruz)
+set(GLAD_PROFILE   "core" CACHE STRING "" FORCE)
+set(GLAD_API       "gl=3.3" CACHE STRING "" FORCE)
+set(GLAD_GENERATOR "c"     CACHE STRING "" FORCE)
+set(GLAD_INSTALL   OFF     CACHE BOOL   "" FORCE)
+
+
 FetchContent_MakeAvailable(glad)
 
 # Optional: OpenGL (for glad + your renderer)
 find_package(OpenGL REQUIRED)  # provides OpenGL::GL on most platforms
 
+
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        master        # or a specific tag like v1.91.0
+)
+
+FetchContent_MakeAvailable(imgui)
+
+#add_library(imgui_sdl2_opengl3
+#    ${imgui_SOURCE_DIR}/imgui.cpp
+#    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+#    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+#    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+#    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+#
+#    # Backends
+#    ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp
+#    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+# "Hazel/Hazel/Core/ImGuiLayer.h" "src/Core/ImGuiLayer.cpp")
+#
+#target_include_directories(imgui_sdl2_opengl3
+#    PUBLIC
+#        ${imgui_SOURCE_DIR}
+#        ${imgui_SOURCE_DIR}/backends
+#)
+
+# Link against your existing SDL2 + GL targets / libs
+#target_link_libraries(imgui_sdl2_opengl3
+#    PUBLIC
+#        SDL2-static          # or SDL2::SDL2 if using imported targets
+#        glad                 # or OpenGL::GL depending on your setup
+#)
+
+#add_library(imgui STATIC
+#    ${IMGUI_SOURCE_DIR}/imgui.cpp
+#    ${IMGUI_SOURCE_DIR}/imgui_draw.cpp
+#    ${IMGUI_SOURCE_DIR}/imgui_tables.cpp
+#    ${IMGUI_SOURCE_DIR}/imgui_widgets.cpp
+#    # backends etc
+#)
+
+
 # Add the executable target
 add_library(Hazel
                     src/Core/Application.cpp
-                    src/Core/Core.cpp
+                    src/Core/Base.cpp
                     src/Core/Log.cpp
-                    src/Platform/WindowsWindow.cpp  "Hazel/Hazel/Core/Platform.h")
+                    src/Platform/WindowsWindow.cpp  
+                    src/Core/Layer.cpp 
+                    src/Core/LayerStack.cpp
+                    "src/Core/ImGuiLayer.cpp"
+                    "src/hzpch.cpp")
 
 # Include the current directory for header files
 target_include_directories(Hazel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Hazel)
+
+# Enable PCH for Hazel
+target_precompile_headers(Hazel
+    PRIVATE
+        "Hazel/Hazel/hzpch.h"    
+)
+
 
 target_include_directories(Hazel PRIVATE
    ${sdl2_SOURCE_DIR}/include
@@ -63,7 +125,8 @@ target_include_directories(Hazel PRIVATE
 target_link_libraries(Hazel PUBLIC spdlog::spdlog_header_only 
                             PRIVATE   SDL2::SDL2
     glad
-    OpenGL::GL)         # ensures opengl32 on Windows / proper GL on other OSes
+    OpenGL::GL  # ensures opengl32 on Windows / proper GL on other OSes
+)         
 
 if (MSVC)
   target_compile_definitions(Hazel PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)

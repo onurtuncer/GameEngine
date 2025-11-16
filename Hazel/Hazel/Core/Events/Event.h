@@ -1,6 +1,6 @@
 #pragma once 
 
-#include "Hazel/Core/Core.h"
+#include "Hazel/Core/Base.h"
 
 #include <string>
 #include <ostream>   // <-- required for std::ostream & stream machinery
@@ -13,14 +13,17 @@ namespace Hazel {
 	// For the future, a better strategy might be to buffer events in an event
 	// bus and process them during the "event" part of the update stage.
 
-	enum class EventType {
+	enum class EventType
+	{
 		None = 0,
 		WindowClose, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
 		AppTick, AppUpdate, AppRender,
-		KeyPressed, KeyReleased, KeyTyped,
+		KeyPressed, KeyReleased,
 		MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
 	};
-	enum EventCategory {
+
+	enum EventCategory
+	{
 		None = 0,
 		EventCategoryApplication = BIT(0),
 		EventCategoryInput = BIT(1),
@@ -37,8 +40,9 @@ namespace Hazel {
 
 	class Event
 	{
-		friend class EventDispatcher;
 	public:
+		bool Handled = false;
+
 		virtual EventType GetEventType() const = 0;
 		virtual const char* GetName() const = 0;
 		virtual int GetCategoryFlags() const = 0;
@@ -48,8 +52,6 @@ namespace Hazel {
 		{
 			return GetCategoryFlags() & category;
 		}
-	protected:
-		bool m_Handled = false;
 	};
 
 	class EventDispatcher
@@ -67,7 +69,7 @@ namespace Hazel {
 		{
 			if (m_Event.GetEventType() == T::GetStaticType())
 			{
-				m_Event.m_Handled = func(*(T*)&m_Event);
+				m_Event.Handled = func(*(T*)&m_Event);
 				return true;
 			}
 			return false;
@@ -80,8 +82,8 @@ namespace Hazel {
 	{
 		return os << e.ToString();
 	}
+}
 
-} // namespace Hazel
 
 	
 

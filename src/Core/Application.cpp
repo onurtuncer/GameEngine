@@ -1,6 +1,20 @@
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <Windows.h>     // include BEFORE glad on Windows (avoids APIENTRY re-def)
+#endif
+
+#include <glad/glad.h>     // provides glClearColor, glClear, GL_COLOR_BUFFER_BIT
+
 #include "Hazel/Core/Application.h"
 #include "Hazel/Core/Events/ApplicationEvent.h"
 #include "Hazel/Core/Log.h"
+
+#include <memory>
 
 namespace Hazel{
 
@@ -13,27 +27,35 @@ Application::Application(){
 	m_Window->SetEventCallback(BIND_EVENT_FN(OnEvent));
 }
 
-Application::~Application(){
-
+Application::~Application()
+{
 
 }
 
-void Application::Run(){
+void Application::PushLayer(Layer* layer)
+{
+	m_LayerStack.PushLayer(layer);
+}
 
-/*	WindowResizeEvent e(1280, 720);
-	if (e.IsInCategory(EventCategoryApplication))
+void Application::PushOverlay(Layer* layer)
+{
+	m_LayerStack.PushOverlay(layer);
+}
+
+void Application::Run()
+{
+	OnInit();
+	while (m_Running)
 	{
-		HZ_TRACE(e.ToString());
-	}
-	if (e.IsInCategory(EventCategoryInput))
-	{
-		HZ_TRACE(e.ToString());
-	} */
+		glClearColor(1, 0, 1, 1);
+		glClear(GL_COLOR_BUFFER_BIT);
 
+		for (Layer* layer : m_LayerStack)
+			layer->OnUpdate();
 
-	while (m_Running) {
 		m_Window->OnUpdate();
 	}
+	OnShutdown();
 }
 
 void Application::OnEvent(Event& event)
@@ -43,6 +65,13 @@ void Application::OnEvent(Event& event)
 	dispatcher.Dispatch<WindowCloseEvent>(BIND_EVENT_FN(OnWindowClose));
 
 	HZ_CORE_TRACE("{}", event.ToString());
+
+	for (auto it = m_LayerStack.end(); it != m_LayerStack.begin(); )
+	{
+		(*--it)->OnEvent(event);
+		if (event.Handled)
+			break;
+	}
 }
 
 bool Application::OnWindowResize(WindowResizeEvent& e)
@@ -58,4 +87,4 @@ bool Application::OnWindowClose(WindowCloseEvent& e)
 }
 
 
-}
+} // namespace Hazel
