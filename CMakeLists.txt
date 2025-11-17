@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
+﻿cmake_minimum_required(VERSION 3.26)
 
 # Set the project name
 project(Hazel LANGUAGES CXX)
@@ -41,7 +41,7 @@ FetchContent_Declare(
   GIT_TAG v0.1.36
 )
 
-# Generator ayarlar? (default�a yak?n tutuyoruz)
+# Generator ayarları (default’a yakın tutuyoruz)
 set(GLAD_PROFILE   "core" CACHE STRING "" FORCE)
 set(GLAD_API       "gl=3.3" CACHE STRING "" FORCE)
 set(GLAD_GENERATOR "c"     CACHE STRING "" FORCE)
@@ -105,7 +105,9 @@ add_library(Hazel
                     src/Core/Layer.cpp 
                     src/Core/LayerStack.cpp
                     "src/Core/ImGuiLayer.cpp"
-                    "src/hzpch.cpp")
+                    "src/hzpch.cpp" 
+                    "src/Platform/OpenGL/ImGuiOpenGLRenderer.cpp" 
+                    "src/Renderer/Renderer.cpp")
 
 # Include the current directory for header files
 target_include_directories(Hazel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Hazel)
