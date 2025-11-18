@@ -66,7 +66,24 @@ void Application::Run()
 		for (Layer* layer : m_LayerStack)
 			layer->OnUpdate();
 
+		// ImGui frame
+		if (m_ImGuiLayer)
+		{
+			m_ImGuiLayer->Begin();
+
+			// Optional: ImGuiLayer's own debug UI (demo window, etc.)
+			m_ImGuiLayer->OnImGuiRender();
+
+			// All layers' ImGui
+			for (Layer* layer : m_LayerStack)
+				layer->OnImGuiRender();
+
+			m_ImGuiLayer->End();
+		}
+
+		// 4) Swap buffers / process window stuff
 		m_Window->OnUpdate();
+
 	}
 	OnShutdown();
 }
