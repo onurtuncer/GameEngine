@@ -8,6 +8,9 @@
 #include "Hazel/Core/Events/KeyEvent.h"
 #include "Hazel/Core/Events/MouseEvent.h"
 
+#include "Hazel/Core/Timestep.h"
+#include "Hazel/Core/ImGuiLayer.h"  
+
 // ---Entry Point------------
 #include "Hazel/EntryPoint.h"
 // --------------------------

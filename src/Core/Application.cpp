@@ -18,18 +18,31 @@
 
 namespace Hazel{
 
+	Application* Application::s_Instance = nullptr;
+
 #define BIND_EVENT_FN(fn) std::bind(&Application::##fn, this, std::placeholders::_1)
 
 
 Application::Application(){
 
+	HZ_CORE_ASSERT(!s_Instance, "Application already exists!");
+	s_Instance = this;
+
 	m_Window = std::unique_ptr<Window>(Window::Create());
 	m_Window->SetEventCallback(BIND_EVENT_FN(OnEvent));
+
+	m_ImGuiLayer = new ImGuiLayer();
+	PushOverlay(m_ImGuiLayer);
 }
 
 Application::~Application()
 {
 
+}
+
+Application& Application::Get()
+{
+	return *s_Instance;
 }
 
 void Application::PushLayer(Layer* layer)

@@ -1,5 +1,167 @@
 #include "Hazel/hzpch.h"
-#include "Hazel/ImGuiLayer.h"
+#include "Hazel/Core/ImGuiLayer.h"
+
+#include "Hazel/Core/Application.h"
+
+#include "imgui.h"
+#include "backends/imgui_impl_sdl2.h"
+#include "backends/imgui_impl_opengl3.h"
+
+#include <SDL.h>
+#include <glad/glad.h>
+
+namespace Hazel {
+
+	ImGuiLayer::ImGuiLayer()
+		: Layer("ImGuiLayer")
+	{
+	}
+
+	ImGuiLayer::ImGuiLayer(const std::string& name)
+		: Layer(name)
+	{
+	}
+
+	ImGuiLayer::~ImGuiLayer()
+	{
+	}
+
+	void ImGuiLayer::OnAttach()
+	{
+		// --- ImGui Context ---
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		(void)io;
+
+		// Keyboard navigation (safe to enable)
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+		// --- Style ---
+		ImGui::StyleColorsDark();
+
+		// --- SDL2 + OpenGL Context from Hazel ---
+		Hazel::Application& app = Hazel::Application::Get();
+		Hazel::Window& window = app.GetWindow();
+
+		SDL_Window* sdlWindow = static_cast<SDL_Window*>(window.GetNativeWindow());
+		SDL_GLContext glContext = SDL_GL_GetCurrentContext();
+
+		// --- Backend initialization ---
+		ImGui_ImplSDL2_InitForOpenGL(sdlWindow, glContext);
+		ImGui_ImplOpenGL3_Init("#version 410");
+	}
+
+
+	/*void ImGuiLayer::OnAttach()
+	{
+		// Create ImGui context
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		(void)io;
+
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+		// Style
+		ImGui::StyleColorsDark();
+		ImGuiStyle& style = ImGui::GetStyle();
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			style.WindowRounding = 0.0f;
+			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+		}
+
+		// Get SDL window + GL context from the Hazel Application
+		Application& app = Application::Get();
+		SDL_Window* window = static_cast<SDL_Window*>(app.GetWindow().GetNativeWindow());
+		SDL_GLContext gl_ctx = SDL_GL_GetCurrentContext();
+
+		// Init backends
+		ImGui_ImplSDL2_InitForOpenGL(window, gl_ctx);
+		ImGui_ImplOpenGL3_Init("#version 410");
+	} */
+
+	void ImGuiLayer::OnDetach()
+	{
+		ImGui_ImplOpenGL3_Shutdown();
+		ImGui_ImplSDL2_Shutdown();
+		ImGui::DestroyContext();
+	}
+
+	void ImGuiLayer::Begin()
+	{
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplSDL2_NewFrame();
+		ImGui::NewFrame();
+	}
+
+	void ImGuiLayer::End()
+	{
+		ImGuiIO& io = ImGui::GetIO();
+
+		Hazel::Application& app = Hazel::Application::Get();
+		Hazel::Window& window = app.GetWindow();
+
+		// Update display size
+		io.DisplaySize = ImVec2(
+			(float)window.GetWidth(),
+			(float)window.GetHeight()
+		);
+
+		// --- Render ---
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+		// NOTE:
+		// No multi-viewport block here, since we disabled docking + viewports.
+	}
+
+
+	/*void ImGuiLayer::End()
+	{
+		ImGuiIO& io = ImGui::GetIO();
+
+		Application& app = Application::Get();
+		auto& window = app.GetWindow();
+		io.DisplaySize = ImVec2(
+			(float)window.GetWidth(),
+			(float)window.GetHeight()
+		);
+
+		// Rendering
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+		// Handle multi-viewport rendering
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow();
+			SDL_GLContext backup_current_context = SDL_GL_GetCurrentContext();
+
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+
+			SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
+		}
+	} */
+
+	void ImGuiLayer::OnImGuiRender()
+	{
+		// Example window – you can customize later
+		static bool show_demo = true;
+		if (show_demo)
+			ImGui::ShowDemoWindow(&show_demo);
+	}
+
+}
+
+
+
+/*#include "Hazel/hzpch.h"
+#include "Hazel/Core/ImGuiLayer.h"
 
 #include "imgui.h"
 #include "Hazel/Core/Application.h"

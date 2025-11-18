@@ -1,6 +1,35 @@
 #pragma once
 
 #include "Hazel/Core/Layer.h"
+#include "imgui.h"
+
+namespace Hazel {
+
+	class ImGuiLayer : public Layer
+	{
+	public:
+		ImGuiLayer();
+		ImGuiLayer(const std::string& name);
+		virtual ~ImGuiLayer();
+
+		virtual void OnAttach() override;
+		virtual void OnDetach() override;
+		virtual void OnImGuiRender();
+
+		void Begin();
+		void End();
+
+	private:
+		float m_Time = 0.0f;
+	};
+
+}
+
+
+
+/*#pragma once
+
+#include "Hazel/Core/Layer.h"
 
 #include "Hazel/Core/Events/KeyEvent.h"
 #include "Hazel/Core/Events/MouseEvent.h"
@@ -31,4 +60,4 @@ namespace Hazel {
 		float m_Time = 0.0f;
 	};
 
-}
+} */
